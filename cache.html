@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>Sherif Eid - PS4 Cache</title>
+    <meta name="author" content="ArabPixel">
+    <link rel="stylesheet" href="./includes/css/colors/default.css">
+    <link rel="stylesheet" href="./includes/css/layouts/index.css">
+    <link rel="stylesheet" href="./includes/css/cache.css">
+</head>
+
+<body class="bg-gray-900 text-white">
+    <main class="mainContainer">
+        <section class="cache-screen">
+            <div class="cache-title">SHERIF EID · OFFLINE CACHE</div>
+            <div class="cache-counter" id="cacheCounter" aria-live="polite">0%</div>
+            <div class="progress-bar-wrap" role="progressbar" aria-label="Cache progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressTrack">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+            <div class="cache-subtitle" id="cacheStatus">Preparing...</div>
+        </section>
+        <div class="cache-footer">SHERIF EID <span>•</span> PlayStation 4 · Firmware Cache</div>
+    </main>
+
+    <iframe id="cacheFrame" src="about:blank"></iframe>
+
+    <script src="./includes/js/storage.js"></script>
+    <script src="./includes/js/testMode.js"></script>
+    <script src="./includes/js/firmware.js"></script>
+    <script>
+        var fwVersion = getPs4FwVersion();
+        var targetPage = getCachePage(fwVersion);
+
+        var statusEl = document.getElementById('cacheStatus');
+        var fillEl = document.getElementById('progressFill');
+        var counterEl = document.getElementById('cacheCounter');
+        var trackEl = document.getElementById('progressTrack');
+        function setCacheProgress(value) {
+            var percent = Math.max(0, Math.min(100, Number(value) || 0));
+            fillEl.style.width = percent + '%';
+            counterEl.textContent = Math.round(percent) + '%';
+            trackEl.setAttribute('aria-valuenow', Math.round(percent));
+        }
+        var frame = document.getElementById('cacheFrame');
+
+        // Listen for postMessages from the iframe (iframe_cache.js)
+        window.addEventListener('message', function (event) {
+            var data = event.data;
+            if (!data || !data.type) return;
+
+            if (data.type === 'CACHE_CHECKING') {
+                statusEl.textContent = 'Checking for updates...';
+
+            } else if (data.type === 'CACHE_DOWNLOADING') {
+                statusEl.textContent = 'Caching new files...';
+
+            } else if (data.type === 'CACHE_PROGRESS') {
+                if (Number(data.percent) >= 0) {
+                    setCacheProgress(data.percent);
+                    statusEl.textContent = 'Caching the update... ' + Math.round(data.percent) + '%';
+                } else if (Number(data.loaded) >= 0 && Number(data.total) > 0) {
+                    var measuredPercent = Math.round((Number(data.loaded) / Number(data.total)) * 100);
+                    setCacheProgress(measuredPercent);
+                    statusEl.textContent = 'Caching the update... ' + measuredPercent + '% (' + data.loaded + ' of ' + data.total + ')';
+                } else {
+                    statusEl.textContent = 'Caching files... ' + (Number(data.loaded) || 0) + ' / ' + (Number(data.total) || 0);
+                }
+
+            } else if (data.type === 'CACHE_COMPLETE') {
+                setCacheProgress(100);
+                statusEl.textContent = 'Cache complete! Redirecting...';
+                setTimeout(function () {
+                    window.location.replace(mainPage);
+                }, 1000);
+
+            } else if (data.type === 'CACHE_UPDATED') {
+                setCacheProgress(100);
+                statusEl.textContent = 'Updated to latest version! Redirecting...';
+                setTimeout(function () {
+                    window.location.replace(mainPage);
+                }, 1000);
+
+            } else if (data.type === 'CACHE_UP_TO_DATE') {
+                setCacheProgress(100);
+                statusEl.textContent = 'Already up to date! Redirecting...';
+                setTimeout(function () {
+                    window.location.replace(mainPage);
+                }, 800);
+
+            } else if (data.type === 'CACHE_ERROR') {
+                var reason = data.reason || 'Unknown error';
+                statusEl.textContent = 'Cache error: ' + reason;
+                setTimeout(function () {
+                    window.location.replace(mainPage);
+                }, 3000);
+            }
+        }, false);
+
+        // Load the firmware-based cache page into the hidden iframe
+        statusEl.textContent = 'Starting cache for firmware ' + (fwVersion || 'unknown') + '...';
+        frame.src = targetPage;
+    </script>
+</body>
+
+</html>
